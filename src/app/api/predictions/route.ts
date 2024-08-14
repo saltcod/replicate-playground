@@ -1,36 +1,42 @@
-import Replicate from "replicate";
+import Replicate from 'replicate'
 
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
-});
+})
 
 export async function POST(req: Request) {
+  const data = await req.formData()
+  const input = data.get('prompt')
 
-  const data = await req.formData();
   if (!process.env.REPLICATE_API_TOKEN) {
-    throw new Error(
-      "The REPLICATE_API_TOKEN environment variable is not set. See README.md for instructions on how to set it."
-    );
+    throw new Error('The REPLICATE_API_TOKEN environment variable is not set. See README.md for instructions on how to set it.')
   }
+  // swap this out with the model-specific api
+  // ex: replicate.com/black-forest-labs/flux-schnell/api
+  const model = 'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc'
 
-  const prediction = await replicate.predictions.create({
-    // Pinned to a specific version of Stable Diffusion
-    // See https://replicate.com/stability-ai/sdxl
-    version: "8beff3369e81422112d93b89ca01426147de542cd4684c244b673b105188fe5f",
+  let predictionResponse
 
-    // This is the text prompt that will be submitted by a form on the frontend
-    input: { prompt: data.get("prompt") },
-  });
+  const output = await replicate.run(
+    model,
+    {
+      input: {
+        prompt: input,
+        width: 768,
+        height: 768,
+        refine: 'expert_ensemble_refiner',
+        apply_watermark: false,
+        num_inference_steps: 25,
+      },
+    },
+    (prediction) => {
+      if (prediction.status === 'succeeded') {
+        predictionResponse = prediction
+      }
+      console.log('Progress:', prediction)
+    }
+  )
 
-  if (prediction?.error) {
-    return new Response(
-      JSON.stringify({ detail: prediction.error.detail }),
-      { status: 500 }
-    );
-  }
-
-  return new Response(
-    JSON.stringify(prediction),
-    { status: 201 }
-  );
+  console.log({ output }, predictionResponse)
+  return new Response(JSON.stringify(predictionResponse), { status: 201 })
 }

@@ -1,47 +1,33 @@
-"use client";
-import { useState } from "react";
-import Head from "next/head";
-import Image from "next/image";
-
-import { Prediction } from "replicate";
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+'use client'
+import { useState } from 'react'
+import Head from 'next/head'
+import Image from 'next/image'
 
 export default function Home() {
-
-  const [prediction, setPrediction] = useState<Prediction | null>(null);
-  const [error, setError] = useState(null);
-
+  const [image, setImage] = useState<string | null>(null)
+  const [responseObject, setResponseObject] = useState<any>(null)
+  const [error, setError] = useState(null)
+  const [generating, setGenerating] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+    e.preventDefault()
+    setGenerating(true) // Set generating to true when request starts
 
-    const response = await fetch("/api/predictions", {
-      method: "POST",
+    const response = await fetch('/api/predictions', {
+      method: 'POST',
       body: new FormData(e.currentTarget),
-    });
+    })
 
-    let prediction = await response.json();
+    const data = await response.json()
+    setGenerating(false) // Set generating to false when request ends
+
     if (response.status !== 201) {
-      setError(prediction.detail);
-      return;
+      setError(data.detail)
+      return
     }
-    setPrediction(prediction);
-
-    while (
-      prediction.status !== "succeeded" &&
-      prediction.status !== "failed"
-    ) {
-      await sleep(1000);
-      const response = await fetch("/api/predictions/" + prediction.id, { cache: 'no-store' });
-      prediction = await response.json();
-      if (response.status !== 200) {
-        setError(prediction.detail);
-        return;
-      }
-      console.log({ prediction })
-      setPrediction(prediction);
-    }
-  };
+    setImage(data.output[0])
+    setResponseObject(data)
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gray-100">
@@ -51,10 +37,11 @@ export default function Home() {
         </Head>
 
         <p className="mb-4 text-lg text-gray-700">
-          Dream something with{" "}
+          Dream something with{' '}
           <a href="https://replicate.com/stability-ai/stable-diffusion" className="text-blue-500 hover:underline">
             SDXL
-          </a>:
+          </a>
+          :
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col items-center w-full">
@@ -67,27 +54,24 @@ export default function Home() {
           <button
             type="submit"
             className="px-4 py-2 mt-4 w-full bg-blue-500 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={generating} // Disable button when generating
           >
-            Go!
+            {generating ? 'Generating...' : 'Go!'}
           </button>
         </form>
 
         {error && <div className="mt-4 text-red-500">{error}</div>}
 
-        {prediction && (
+        {image && (
           <div className="mt-4">
-            {prediction.output && (
-              <div className="flex flex-col items-center justify-center w-full">
-                <Image
-                  src={prediction.output[prediction.output.length - 1]}
-                  alt="output"
-                  width={500}
-                  height={500}
-                  className="object-cover w-full h-full rounded-md border-gray-300"
-                />
+            <div className="flex flex-col items-center justify-center w-full">
+              <Image src={image} alt="output" width={500} height={500} className="object-cover w-full h-full rounded-md border-gray-300" />
+            </div>
+            {responseObject && (
+              <div className="mt-4">
+                <p>Generated in: {responseObject.metrics.predict_time.toFixed(1)}s</p>
               </div>
             )}
-            <p className="mt-4 text-lg text-gray-700">status: {prediction.status}</p>
           </div>
         )}
       </div>
