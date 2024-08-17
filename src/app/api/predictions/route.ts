@@ -12,7 +12,6 @@ export async function POST(req: Request) {
     throw new Error('The REPLICATE_API_TOKEN environment variable is not set. See README.md for instructions on how to set it.')
   }
   // swap this out with the model-specific api
-  // ex: replicate.com/black-forest-labs/flux-schnell/api
   const model = 'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc'
 
   let predictionResponse
